@@ -2,6 +2,16 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
+<script id="theme-init">
+(function () {
+  var theme;
+  try { theme = localStorage.getItem('crc:theme'); } catch (_) {}
+  if (theme !== 'light' && theme !== 'dark') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Code Review Companion</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -221,6 +231,46 @@ table.profile td.num{font-variant-numeric:tabular-nums}
 @media (max-width:560px){.wrap{padding:20px 14px 60px}.fields{grid-template-columns:1fr}.kpi .value{font-size:26px}.appbar-in{padding:10px 14px}.tag{display:none}}
 @media print{.appbar,.tabs,.filters,.res-actions,.respond .seg-control,.foot{display:none!important}body{background:#fff}.card{box-shadow:none}}
 </style>
+<style id="professional-ui">
+/* Presentation layer only. Original content, markup and scripts preserved. */
+:root{
+ --bg:#f3f6fa;--surface:#fff;--surface-2:#f7f9fc;--ink:#17283f;--muted:#586b80;--faint:#8b9aab;--rule:#e1e8f0;--rule-strong:#c7d3e0;
+ --action:#087f83;--action-hover:#06696c;--action-ink:#fff;--action-tint:#e7f5f3;
+ --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--radius:16px;--shadow:0 4px 20px rgba(24,45,73,.035);
+}
+body{font-size:15px;line-height:1.65;background:radial-gradient(ellipse at 90% 0%,#e7f2f4 0,transparent 45%),var(--bg)}
+h1,h2,h3,h4{letter-spacing:-.025em}h1{font-size:clamp(29px,3.5vw,43px);font-weight:750;line-height:1.16}h2{font-size:19px}h3{font-size:16px}
+.appbar{background:#13263f;border-bottom:1px solid #263c55;box-shadow:0 3px 16px #10243c14}
+.appbar-in{max-width:1240px;min-height:78px;padding:16px 28px;gap:18px;flex-wrap:wrap}
+.brand{color:#fff;font-size:17px;letter-spacing:-.025em}.mark{width:38px;height:38px;border-radius:12px;background:#13958f;color:#fff;box-shadow:0 4px 12px #0002}.mark svg{width:23px;height:23px}
+.appbar .tag{background:#ffffff0c;color:#c1d8e9;border:1px solid #ffffff19;font-size:12px;padding:5px 12px;font-weight:500}
+.appbar .who{color:#c0d0df}.appbar .btn{color:#e6edf5;background:#ffffff0b;border-color:#ffffff28}.appbar .btn:hover{background:#ffffff18}.appbar .btn.quiet{border-color:transparent}
+.wrap{max-width:1240px;padding:48px 28px 64px}.intro{margin-bottom:32px;max-width:940px}.intro h1{max-width:730px;margin-bottom:16px}.intro p{font-size:16px;line-height:1.8;max-width:85ch;margin-bottom:0}
+.submit-grid{grid-template-columns:minmax(0,1.75fr) minmax(300px,1fr);gap:26px}.stack{gap:22px}.card{overflow:hidden}.card-pad{padding:26px 28px}.card h2{margin-bottom:9px}.card-pad>p.small{margin-bottom:21px}
+.fields{gap:18px;margin-top:20px}.field label{font-size:13px;letter-spacing:.01em;margin-bottom:8px}.field input,textarea{border-radius:9px;padding:12px 14px;background:var(--surface-2);transition:border-color .15s,box-shadow .15s}.field input:hover,textarea:hover{border-color:var(--faint)}.field input:focus,textarea:focus{border-color:var(--action);box-shadow:0 0 0 3px var(--action-tint)}.field .hint{font-size:12px;margin-top:7px}
+.btn{font-size:13px;font-weight:600;padding:11px 16px;min-height:42px;border-radius:9px;transition:background .15s,border-color .15s,box-shadow .15s}.btn:hover{border-color:var(--action);box-shadow:0 2px 8px #10243c08}.btn.primary{box-shadow:0 4px 10px #087f831a}.btn.big{padding:13px 22px;font-size:14px}.btn:disabled{box-shadow:none}.btn.quiet{min-height:36px}.upload{border-width:1.5px;padding:28px 22px;border-radius:12px;margin-top:18px;background:var(--surface-2)}.upload h3{font-size:17px;margin-bottom:8px}.upload .pickers{margin-top:20px;gap:12px}.upload.over{box-shadow:inset 0 0 0 1px var(--action)}
+.side{border-top:3px solid var(--action);position:sticky;top:104px}.side h3{font-size:17px;margin-bottom:20px}.how li{padding:0 0 23px 43px}.how li:last-child{padding-bottom:0}.how li::before{width:29px;height:29px;border-radius:9px;font-size:12px;border:1px solid #087f8318}.how strong{font-size:14px;margin-bottom:3px}.how span{font-size:13px;line-height:1.65;display:block}.divider{margin:25px 0}.side .keylist li{grid-template-columns:108px 1fr;font-size:12px;padding:12px 0;gap:12px}.side .keylist .muted{font-weight:600}
+.sendbar{align-items:flex-start;gap:18px;padding:0 2px}.privacy{font-size:12px;max-width:440px;line-height:1.7}.sendbar .btn{flex-shrink:0}.foot{max-width:1240px;padding:0 28px 32px;font-size:12px}.foot::before{content:"";display:block;height:1px;background:var(--rule);margin-bottom:22px}
+.res-head{margin-bottom:28px}.res-head h1{font-size:32px}.tabs{background:var(--surface);padding:5px;border:1px solid var(--rule);border-radius:12px;gap:5px;margin-bottom:24px}.tab{border-bottom:0;border-radius:8px;padding:11px 18px;font-size:14px}.tab:hover{background:var(--surface-2)}.tab[aria-selected="true"]{background:var(--action-tint);color:var(--action)}.kpis{gap:18px;margin-bottom:22px}.kpi{padding:22px}.kpi .label{font-size:12px;font-weight:600}.kpi .value{font-size:36px;letter-spacing:-.05em;margin:10px 0 4px}.kpi .note{font-size:12px}.kpi.high{border-top:3px solid var(--high)}.meter-card{padding:23px 28px;margin-bottom:22px}.meter{margin:18px 0 14px}.seg{height:10px}.two,.help-grid{gap:22px}.filters{top:104px;padding:20px}.fopt{padding:9px 10px;font-size:13px}.filters h3{font-size:12px;letter-spacing:.04em}.catcard>summary{padding:20px 24px}.finding{padding:22px 24px}.explain{margin:0 24px 10px;padding:18px}.help-grid .card{padding:27px}.tablewrap{border-radius:10px}table.profile th,table.profile td{padding:13px 16px}.progress-card{margin:28px auto;padding:32px;max-width:650px}.progress-card h1{font-size:29px}.steps{margin:25px 0}.steps li{padding:14px 0}.toast{box-shadow:0 8px 32px #10243c26;border-radius:12px}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1826;--surface:#162337;--surface-2:#1b2b41;--ink:#e6edf6;--muted:#a6b7ca;--faint:#7c90a8;--rule:#293b52;--rule-strong:#3b506a;--action:#49c7bb;--action-hover:#66dace;--action-ink:#0c2927;--action-tint:#193d3c;--shadow:0 4px 20px #0001}body{background:radial-gradient(ellipse at 90% 0%,#153a42 0,transparent 45%),var(--bg)}}
+:root[data-theme="dark"]{--bg:#0e1826;--surface:#162337;--surface-2:#1b2b41;--ink:#e6edf6;--muted:#a6b7ca;--faint:#7c90a8;--rule:#293b52;--rule-strong:#3b506a;--action:#49c7bb;--action-hover:#66dace;--action-ink:#0c2927;--action-tint:#193d3c;--shadow:0 4px 20px #0001}
+@media(max-width:980px){.submit-grid,.two,.fgrid{grid-template-columns:1fr}.side{position:static}.intro{max-width:850px}.appbar-in{gap:12px}.appbar .tag{margin-left:auto}.filters{position:static}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.help-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.appbar-in{padding:14px 18px;min-height:70px}.brand{font-size:15px;gap:9px}.mark{width:32px;height:32px}.wrap{padding:30px 18px 40px}.intro{margin-bottom:24px}.intro h1{font-size:31px}.intro p{font-size:14px}.card-pad,.help-grid .card{padding:22px 20px}.fields{grid-template-columns:1fr}.upload{padding:24px 16px}.side .keylist li{grid-template-columns:100px 1fr}.sendbar .btn.big{width:100%;justify-content:center}.kpis{gap:12px}.kpi{padding:17px}.kpi .value{font-size:30px}.res-actions{width:100%}.res-actions .btn{flex:1;justify-content:center}.tab{padding:10px 12px;font-size:13px}.meter-card{padding:20px}.foot{padding:0 18px 25px}.progress-card{padding:24px}.seg-control{width:100%}.seg-control button{flex:1;padding:10px 8px;font-size:12px}.f-head .status{margin-left:0}.catcard>summary,.finding{padding:18px}.explain{margin:0 18px 10px}.intro h1,.brand{overflow-wrap:anywhere}}
+@media print{body{background:#fff}.card{box-shadow:none;break-inside:avoid}.side{position:static}.wrap{padding-top:20px}.intro h1{font-size:28px}}
+
+</style>
+<style id="theme-controls">
+:root[data-theme="light"] {color-scheme:light}
+:root[data-theme="dark"] {color-scheme:dark}
+:root[data-theme="light"] body{background:radial-gradient(ellipse at 90% 0%,#e7f2f4 0,transparent 45%),var(--bg)}
+:root[data-theme="dark"] body{background:radial-gradient(ellipse at 90% 0%,#153a42 0,transparent 45%),var(--bg)}
+.theme-switch{display:inline-flex;flex-shrink:0;gap:3px;padding:4px;border:1px solid #ffffff25;border-radius:10px;background:#ffffff08}
+.theme-choice{font:600 12px/1.3 var(--sans);padding:9px 12px;min-height:36px;border:0;border-radius:6px;background:transparent;color:#b6c7d9;cursor:pointer}
+.theme-choice:hover{background:#ffffff0f;color:#fff}
+.theme-choice[aria-pressed="true"]{background:#e9f4f3;color:#145d60;box-shadow:0 1px 4px #0002}
+@media(max-width:560px){.theme-switch{margin-left:auto}.theme-choice{min-height:40px;padding:9px 12px}}
+@media print{.theme-switch{display:none}}
+</style>
 </head>
 <body>
 <header class="appbar">
@@ -231,6 +281,11 @@ table.profile td.num{font-variant-numeric:tabular-nums}
     </a>
     <span class="tag">COM661 Full Stack Development</span>
     <span class="spacer"></span>
+    <div class="theme-switch" role="group" aria-label="Colour theme">
+      <button class="theme-choice" type="button" data-set-theme="light" aria-pressed="false">Light</button>
+      <button class="theme-choice" type="button" data-set-theme="dark" aria-pressed="false">Dark</button>
+    </div>
+
     <span class="who" id="who"></span>
     <button class="btn quiet" id="lastBtn" hidden>My last review</button>
     <button class="btn" id="newBtn" hidden>New review</button>
@@ -440,7 +495,7 @@ table.profile td.num{font-variant-numeric:tabular-nums}
     </div>
   </section>
 </main>
-<footer class="foot">Code Review Companion. Automated checks support your learning; they don't replace your own testing and judgement.</footer>
+<footer class="foot">Code Review Companion. Automated checks support your learning; they don't replace your own testing and judgement.<div style="margin-top:8px">&copy; 2026. Built by Muhammed Sihan Haroon.</div></footer>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
@@ -1033,6 +1088,25 @@ $("forgetBtn").addEventListener("click", () => {
     pending = p; pending.started = Date.now(); pending.finishingSince = null;
     showView("viewProgress"); showStep("queued"); startClock(p.submitted || Date.now()); poll();
   } else if (p) ls.del("crc:portal:pending");
+})();
+</script>
+<script id="theme-switch-script">
+(function () {
+  var choices = document.querySelectorAll('[data-set-theme]');
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    choices.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-set-theme') === theme));
+    });
+  }
+  applyTheme(document.documentElement.getAttribute('data-theme'));
+  choices.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var theme = button.getAttribute('data-set-theme');
+      applyTheme(theme);
+      try { localStorage.setItem('crc:theme', theme); } catch (_) {}
+    });
+  });
 })();
 </script>
 </body>
