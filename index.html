@@ -140,7 +140,7 @@ textarea{width:100%;min-height:74px;margin-top:10px;font:15px/1.5 var(--sans);pa
       <li data-step="finishing">Writing your report</li>
     </ol>
     <p class="state" id="progressNote">This usually takes one to two minutes. Keep this page open.</p>
-    <button id="retryBtn" hidden>Check again</button>
+    <div class="actions"><button id="retryBtn" hidden>Check again</button><button id="cancelBtn">Stop waiting</button></div>
   </div>
 
   <div id="results" aria-live="polite">
@@ -172,7 +172,7 @@ const RELAY_OK = /^https:\/\/[^<>\s]+$/.test(RELAY_URL);
 
 const HINTS = {"sql-injection": {"title": "SQL injection", "why": "If user input is joined into a query string, a user can change what the query does, including reading or deleting data they should never see.", "ask": ["Trace where each value in this query comes from. Could a user control any part of it?", "What would happen if that value contained a single quote?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"}, "xss": {"title": "Cross-site scripting (XSS)", "why": "If user-supplied text is written into a page as HTML, a user can inject script that runs in other people's browsers.", "ask": ["Where does this text originate, and does any step treat it as markup rather than text?", "What would render if someone submitted <script> as their input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"}, "secrets": {"title": "Hardcoded secrets and credentials", "why": "Anyone with access to the repository, now or in future, can use a committed key or password. Deleting it later does not remove it from Git history.", "ask": ["Who can see this repository, and who might in future?", "If this credential were leaked, what would you need to do beyond editing the file?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"}, "command-injection": {"title": "Command injection", "why": "Passing input to a shell lets a user run arbitrary commands on the server.", "ask": ["Does any part of this command come from outside your code?", "Does this task need a shell at all?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"}, "code-injection": {"title": "Dynamic code execution", "why": "Evaluating strings as code means anyone who controls the string controls your program.", "ask": ["Why is code being built from a string here?", "Could a user influence that string, directly or indirectly?"], "learn": "https://owasp.org/www-community/attacks/Code_Injection"}, "path-traversal": {"title": "Path traversal", "why": "Building file paths from input can let a user read or overwrite files outside the intended folder.", "ask": ["What happens if the input contains ../ ?", "Which folder should this code be allowed to reach, and what enforces that?"], "learn": "https://owasp.org/www-community/attacks/Path_Traversal"}, "weak-crypto": {"title": "Weak or misused cryptography", "why": "Outdated algorithms (MD5, SHA-1, DES) or fast hashes for passwords can be broken with ordinary hardware.", "ask": ["What is this hash or cipher protecting, and for how long must it stay protected?", "Is this algorithm designed for that purpose?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"}, "deserialisation": {"title": "Unsafe deserialisation", "why": "Some formats (pickle, unsafe YAML loaders) can execute code while loading data.", "ask": ["Where does this data come from? Could someone else have written it?", "Does the loader you are using only build data, or can it build arbitrary objects?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html"}, "csrf": {"title": "Cross-site request forgery (CSRF)", "why": "Without protection, another website can make a logged-in user's browser perform actions on your site.", "ask": ["How does the server know a request came from your own form?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"}, "open-redirect": {"title": "Open redirect", "why": "Redirecting to a user-supplied URL lets attackers use your domain to make phishing links look trustworthy.", "ask": ["Which destinations should this redirect actually allow?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html"}, "vulnerable-dependency": {"title": "Dependencies with known vulnerabilities", "why": "A library with a published vulnerability is a known way in, and attackers scan for them automatically.", "ask": ["Do you actually use the affected part of this package?", "What would upgrading change, and how would you check nothing broke?"], "learn": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/"}, "documentation": {"title": "Documentation", "why": "In industry, code nobody can set up or understand is code nobody can maintain. A README is the first thing a colleague or client reads.", "ask": ["Could someone who has never seen this project run it from your README alone?", "Have you explained the security decisions you made, and the ones you deferred?"], "learn": "https://www.makeareadme.com/"}, "repo-hygiene": {"title": "Repository hygiene", "why": "Committed environment files and dependency folders leak configuration and bloat the repository.", "ask": ["Which files in this repository should only ever exist on your own machine?"], "learn": "https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files"}, "credential-storage": {"title": "Password storage", "why": "If the database is ever copied or leaked, every stored password is exposed as-is. Many people reuse passwords, so the damage spreads beyond your application.", "ask": ["If someone read your users collection, what exactly would they learn?", "What is the difference between encrypting a password and hashing it, and which does login actually need?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"}, "tls-verification": {"title": "TLS certificate verification", "why": "Certificate checks are what prove you are talking to your real database server. Without them, anyone on the network path can impersonate it and read the traffic.", "ask": ["Why was this setting needed in the first place, and is that reason still true?", "Could this setting ever be active when the application is deployed?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"}, "nosql-injection": {"title": "NoSQL injection", "why": "MongoDB operators such as $regex and $where interpret their input. If a user controls that input, they can change what the query matches or make it very slow.", "ask": ["What would this query do if the input were .* or a very long pattern?", "Does this search need to treat the input as a pattern at all?"], "learn": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection"}, "missing-authentication": {"title": "Authentication on routes that change data", "why": "Any route that creates, changes or deletes data without checking who is calling can be used by anyone who finds the URL.", "ask": ["Who should be allowed to call this route, and what currently stops everyone else?", "Where does the user's identity come from here: the token, or the request body?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"}, "input-validation": {"title": "Input validation", "why": "Unchecked input that cannot be converted crashes the request with a 500 error, which tells the client nothing useful and hides the real cause.", "ask": ["What happens if someone sends page=abc?", "Which HTTP status code best describes a request with invalid input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"}, "debug-mode": {"title": "Debug mode", "why": "Flask's debugger shows full stack traces and includes an interactive console. If it is reachable by others, they can run code on your machine.", "ask": ["Where and by whom will this application be run?", "How could the same code run in debug mode locally but not elsewhere?"], "learn": "https://flask.palletsprojects.com/en/latest/debugging/"}, "general": {"title": "Other security findings", "why": "The tool matched a known risky pattern. Read its message and decide whether it applies to your context.", "ask": ["What is the rule concerned about, in your own words?", "Does that concern apply to how this code is actually used?"], "learn": "https://owasp.org/www-project-top-ten/"}};
 const MIN_WORDS = 15;
-const POLL_MS = 5000, GIVE_UP_MS = 8 * 60 * 1000;
+const POLL_MS = 5000, GIVE_UP_MS = 8 * 60 * 1000, FINISH_GIVE_UP_MS = 2 * 60 * 1000, RESUME_MAX_MS = 20 * 60 * 1000;
 const TEXT_EXT = /\.(py|js|ts|jsx|tsx|mjs|cjs|json|md|txt|yml|yaml|toml|cfg|ini|env|html|htm|css|scss|sql|sh|java|php|rb|go|cs)$/i;
 const SKIP_DIRS = /(^|\/)(node_modules|venv|\.venv|env|\.git|\.idea|\.vscode|dist|build)\//;
 const MAX_FILE = 400000, MAX_TOTAL = 3000000;
@@ -270,7 +270,7 @@ async function send() {
     const files = await readAll(normalise(chosen.entries));
     if (!files.length) throw new Error("No files were found in your upload.");
     const res = await relay("/submit", { studentId: id, accessCode: code, files });
-    pending = { id, sha: res.sha, files: res.files, started: Date.now() };
+    pending = { id, sha: res.sha, files: res.files, started: Date.now(), submitted: Date.now() };
     ls.set("crc:portal:pending", pending);
     poll();
   } catch (e) {
@@ -281,8 +281,18 @@ async function send() {
   }
 }
 
+function stopWaiting(message) {
+  clearTimeout(pollTimer);
+  ls.del("crc:portal:pending");
+  pending = null;
+  $("progress").hidden = true;
+  $("sendBtn").disabled = !(chosen && RELAY_OK);
+  $("error").textContent = message || "";
+}
+
 async function poll() {
   clearTimeout(pollTimer);
+  if (!pending) return;
   $("progress").hidden = false; $("retryBtn").hidden = true;
   try {
     const s = await relay(`/status?id=${encodeURIComponent(pending.id)}&sha=${pending.sha}`);
@@ -290,9 +300,17 @@ async function poll() {
     if (s.state === "failed") {
       $("progressTitle").textContent = "The review couldn't finish";
       $("progressNote").textContent = "Something went wrong while scanning. Send your code again; if it keeps failing, tell your lecturer.";
-      $("sendBtn").disabled = false; return;
+      ls.del("crc:portal:pending"); $("sendBtn").disabled = !(chosen && RELAY_OK); return;
     }
     showStep(s.state);
+    if (s.state === "finishing") {
+      pending.finishingSince = pending.finishingSince || Date.now();
+      if (Date.now() - pending.finishingSince > FINISH_GIVE_UP_MS) {
+        $("progressTitle").textContent = "The report couldn't be loaded";
+        $("progressNote").textContent = "Your code was scanned, but the results didn't come back to this page. Send your code again; if this keeps happening, tell your lecturer.";
+        $("retryBtn").hidden = false; $("sendBtn").disabled = !(chosen && RELAY_OK); return;
+      }
+    }
   } catch (e) { $("progressNote").textContent = e.message; }
   if (Date.now() - pending.started > GIVE_UP_MS) {
     $("progressNote").textContent = "This is taking longer than usual. The review will still finish: check again in a few minutes.";
@@ -467,7 +485,14 @@ const drop = $("drop");
 ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", (e) => takeZip(e.dataTransfer.files[0]));
 $("sendBtn").addEventListener("click", send);
-$("retryBtn").addEventListener("click", () => { pending.started = Date.now(); poll(); });
+$("retryBtn").addEventListener("click", () => {
+  if (!pending) return;
+  pending.started = Date.now(); pending.finishingSince = null;
+  $("progressTitle").textContent = "Reviewing your code";
+  $("progressNote").textContent = "Checking again. Keep this page open.";
+  poll();
+});
+$("cancelBtn").addEventListener("click", () => stopWaiting("Stopped waiting. You can send your code again whenever you're ready."));
 $("againBtn").addEventListener("click", () => { window.scrollTo({ top: 0, behavior: "smooth" }); chosen = null; $("chosen").textContent = ""; $("sendBtn").disabled = true; });
 $("lastBtn").addEventListener("click", () => { const l = ls.get("crc:portal:last", null); if (l) showReport(l.id, l.report, l.files, false); });
 $("forgetBtn").addEventListener("click", () => {
@@ -481,7 +506,9 @@ $("forgetBtn").addEventListener("click", () => {
   if (me) { $("studentId").value = me.id || ""; $("accessCode").value = me.code || ""; }
   if (ls.get("crc:portal:last", null)) $("lastBtn").hidden = false;
   const p = ls.get("crc:portal:pending", null);
-  if (p && RELAY_OK) { pending = p; pending.started = Date.now(); poll(); }
+  if (p && RELAY_OK && Date.now() - (p.submitted || 0) < RESUME_MAX_MS) {
+    pending = p; pending.started = Date.now(); pending.finishingSince = null; poll();
+  } else if (p) ls.del("crc:portal:pending");
 })();
 </script>
 </body>
