@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Code Review Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#F4F6F5; --surface:#FFFFFF; --ink:#17201D; --muted:#56625E; --rule:#D5DCD9; --action:#0B6B5E; --action-ink:#FFFFFF;
+  --high:#B42318; --medium:#9A5700; --low:#52606D; --ok:#1B7A3E; --flag:#A15C00; --tint:#E8EFEC;
+  --sans:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101614; --surface:#161E1B; --ink:#E3EAE7; --muted:#9AA7A2; --rule:#2A3531; --action:#46C2AC; --action-ink:#07231E;
+  --high:#F97066; --medium:#F5A524; --low:#98A2B3; --ok:#4ADE80; --flag:#F5A524; --tint:#1C2622;}}
+:root[data-theme="dark"]{
+  --bg:#101614; --surface:#161E1B; --ink:#E3EAE7; --muted:#9AA7A2; --rule:#2A3531; --action:#46C2AC; --action-ink:#07231E;
+  --high:#F97066; --medium:#F5A524; --low:#98A2B3; --ok:#4ADE80; --flag:#F5A524; --tint:#1C2622;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 var(--sans)}
+main{max-width:860px;margin:0 auto;padding:40px 20px 80px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.1;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:22px;margin:0 0 6px}
+h3{font-size:17px;margin:0}
+p{margin:0 0 12px;max-width:68ch}
+a{color:var(--action)}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.lede{color:var(--muted);font-size:18px}
+button,.btn{font:inherit;font-size:15px;cursor:pointer;border-radius:8px;padding:9px 14px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+button.primary{background:var(--action);border-color:var(--action);color:var(--action-ink);font-weight:700}
+button:focus-visible,textarea:focus-visible,label.pick:focus-within{outline:3px solid var(--action);outline-offset:2px}
+button[disabled]{opacity:.5;cursor:default}
+.drop{margin:28px 0 8px;border:2px dashed var(--rule);border-radius:14px;background:var(--surface);padding:34px 24px;text-align:center;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--action);background:var(--tint)}
+.drop strong{display:block;font-size:20px;margin-bottom:6px}
+.pickers{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+label.pick{display:inline-block;border-radius:8px;padding:9px 14px;border:1px solid var(--rule);cursor:pointer;font-size:15px;background:var(--bg)}
+label.pick.primary{background:var(--action);border-color:var(--action);color:var(--action-ink);font-weight:700}
+label.pick input{position:absolute;opacity:0;width:1px;height:1px}
+.private{font-size:14px;color:var(--muted);text-align:center;margin-top:10px}
+.error{color:var(--high);font-weight:700;margin-top:12px}
+#results{display:none}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:14px 0 12px;border-bottom:1px solid var(--rule);margin-bottom:18px}
+.bar-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.project{font-weight:700;font-size:19px;overflow-wrap:anywhere}
+.counts{color:var(--muted);font-size:15px}
+.meter{display:flex;gap:3px;margin-top:10px;flex-wrap:wrap}
+.tick{width:14px;height:14px;border-radius:3px;background:var(--rule)}
+.tick.done{background:var(--ok)} .tick.flag{background:var(--flag)} .tick.pending{background:var(--action);opacity:.55}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.sev{display:inline-block;font-size:13px;font-weight:700;padding:1px 8px;border-radius:999px;border:1.5px solid currentColor}
+.sev.high{color:var(--high)} .sev.medium{color:var(--medium)} .sev.low{color:var(--low)}
+section.cat{margin:26px 0;padding-left:16px;border-left:4px solid var(--rule)}
+section.cat.high{border-left-color:var(--high)} section.cat.medium{border-left-color:var(--medium)} section.cat.low{border-left-color:var(--low)}
+.why{color:var(--ink)}
+.ask{margin:6px 0 8px;padding-left:20px;color:var(--muted)}
+.ask li{margin:2px 0}
+.learn{font-size:15px}
+.finding{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;margin-top:12px}
+.f-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.fid{font-family:var(--mono);font-weight:500;font-size:14px}
+.loc{font-family:var(--mono);font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.msg{margin:8px 0 10px}
+.choices{display:flex;gap:6px;flex-wrap:wrap}
+.choices button{padding:6px 12px;font-size:14px}
+.choices button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:700}
+textarea{width:100%;min-height:74px;margin-top:10px;font:15px/1.5 var(--sans);padding:10px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);resize:vertical}
+.state{font-size:14px;margin-top:6px;color:var(--muted)}
+.state.done{color:var(--ok)} .state.flag{color:var(--flag);font-weight:700}
+.resolved{margin-top:30px;padding:14px 16px;border-radius:10px;background:var(--tint)}
+.clean{padding:22px;border-radius:12px;background:var(--surface);border:1px solid var(--rule)}
+.foot{margin-top:40px;font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+.link{background:none;border:none;padding:0;color:var(--action);text-decoration:underline;font-size:14px}
+@media (max-width:560px){main{padding:24px 16px 60px}.drop{padding:26px 14px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:26px 0 0}
+.fields label{display:block;font-weight:700;font-size:15px}
+.fields input{display:block;width:100%;margin-top:6px;font:16px var(--sans);padding:10px 12px;border-radius:8px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+.fields input:focus-visible{outline:3px solid var(--action);outline-offset:2px}
+.chosen{margin-top:14px;font-weight:700}
+.send{margin-top:16px;text-align:center}
+.progress{margin:24px 0;padding:18px 20px;border-radius:12px;background:var(--surface);border:1px solid var(--rule)}
+.steps{list-style:none;padding:0;margin:10px 0 0}
+.steps li{padding:4px 0 4px 26px;position:relative;color:var(--muted)}
+.steps li::before{content:"";position:absolute;left:4px;top:11px;width:10px;height:10px;border-radius:50%;border:2px solid var(--rule)}
+.steps li.now{color:var(--ink);font-weight:700}
+.steps li.now::before{border-color:var(--action);background:var(--action)}
+.steps li.done{color:var(--ink)}
+.steps li.done::before{border-color:var(--ok);background:var(--ok)}
+.consent{font-size:14px;color:var(--muted);margin-top:10px;text-align:center}
+@media (max-width:560px){.fields{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.steps li.now::before{animation:pulse 1.4s ease-in-out infinite}}
+@keyframes pulse{50%{opacity:.35}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Get your code reviewed</h1>
+    <p class="lede">Send your project for an automated review of security, structure and documentation. Each finding explains why it matters and what to look into. It won't tell you how to fix it; that part is yours.</p>
+  </header>
+
+  <div id="notReady" class="error" role="alert" hidden>This page isn't connected to the review service yet. Tell your lecturer.</div>
+
+  <form id="form" autocomplete="on" onsubmit="return false">
+    <div class="fields">
+      <label>Student ID<input id="studentId" name="studentId" placeholder="B00123456" autocomplete="username" required></label>
+      <label>Access code<input id="accessCode" name="accessCode" placeholder="From your lecturer" required></label>
+    </div>
+    <div class="drop" id="drop">
+      <strong>Drop your project zip here</strong>
+      <span class="counts">or choose it from your computer</span>
+      <div class="pickers">
+        <label class="pick primary">Choose zip file<input type="file" id="zipInput" accept=".zip,application/zip"></label>
+        <label class="pick">Choose project folder<input type="file" id="dirInput" webkitdirectory multiple></label>
+      </div>
+      <div class="chosen" id="chosen"></div>
+      <div id="error" class="error" role="alert"></div>
+    </div>
+    <div class="send"><button class="primary" id="sendBtn" disabled>Send for review</button></div>
+    <p class="consent">Your code is sent to the module's private review repository, where only module staff can see it.
+      Submission copies are deleted automatically after the retention period.</p>
+    <p class="consent"><button class="link" id="lastBtn" hidden>Show my last review</button></p>
+  </form>
+
+  <div class="progress" id="progress" hidden aria-live="polite">
+    <h2 id="progressTitle">Reviewing your code</h2>
+    <ol class="steps" id="steps">
+      <li data-step="send">Sending your files</li>
+      <li data-step="queued">Waiting for a scanner</li>
+      <li data-step="running">Scanning your code</li>
+      <li data-step="finishing">Writing your report</li>
+    </ol>
+    <p class="state" id="progressNote">This usually takes one to two minutes. Keep this page open.</p>
+    <button id="retryBtn" hidden>Check again</button>
+  </div>
+
+  <div id="results" aria-live="polite">
+    <div class="bar">
+      <div class="bar-top">
+        <span class="project" id="project"></span>
+        <span class="counts" id="counts"></span>
+      </div>
+      <div class="meter" id="meter" aria-hidden="true"></div>
+      <div class="actions">
+        <button class="primary" id="saveBtn">Download my responses</button>
+        <button id="againBtn">Send updated code</button>
+      </div>
+      <div class="state" id="saveMsg" role="status"></div>
+    </div>
+    <div id="summary"></div>
+    <div id="findings"></div>
+    <div id="resolvedBox"></div>
+    <p class="foot">Automated checks recognise known patterns only. No findings does not mean the code is secure: your README's security section is where you show your own judgement.
+      <br><button class="link" id="forgetBtn">Forget my saved responses on this device</button></p>
+  </div>
+</main>
+
+<script>
+// ===== Set this to your Cloudflare Worker address, e.g. "https://code-review-relay.yourname.workers.dev" =====
+const RELAY_URL = "https://code-review-relay.<something>.workers.dev";
+// ==============================================================================================================
+
+const HINTS = {"sql-injection": {"title": "SQL injection", "why": "If user input is joined into a query string, a user can change what the query does, including reading or deleting data they should never see.", "ask": ["Trace where each value in this query comes from. Could a user control any part of it?", "What would happen if that value contained a single quote?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"}, "xss": {"title": "Cross-site scripting (XSS)", "why": "If user-supplied text is written into a page as HTML, a user can inject script that runs in other people's browsers.", "ask": ["Where does this text originate, and does any step treat it as markup rather than text?", "What would render if someone submitted <script> as their input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"}, "secrets": {"title": "Hardcoded secrets and credentials", "why": "Anyone with access to the repository, now or in future, can use a committed key or password. Deleting it later does not remove it from Git history.", "ask": ["Who can see this repository, and who might in future?", "If this credential were leaked, what would you need to do beyond editing the file?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"}, "command-injection": {"title": "Command injection", "why": "Passing input to a shell lets a user run arbitrary commands on the server.", "ask": ["Does any part of this command come from outside your code?", "Does this task need a shell at all?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"}, "code-injection": {"title": "Dynamic code execution", "why": "Evaluating strings as code means anyone who controls the string controls your program.", "ask": ["Why is code being built from a string here?", "Could a user influence that string, directly or indirectly?"], "learn": "https://owasp.org/www-community/attacks/Code_Injection"}, "path-traversal": {"title": "Path traversal", "why": "Building file paths from input can let a user read or overwrite files outside the intended folder.", "ask": ["What happens if the input contains ../ ?", "Which folder should this code be allowed to reach, and what enforces that?"], "learn": "https://owasp.org/www-community/attacks/Path_Traversal"}, "weak-crypto": {"title": "Weak or misused cryptography", "why": "Outdated algorithms (MD5, SHA-1, DES) or fast hashes for passwords can be broken with ordinary hardware.", "ask": ["What is this hash or cipher protecting, and for how long must it stay protected?", "Is this algorithm designed for that purpose?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"}, "deserialisation": {"title": "Unsafe deserialisation", "why": "Some formats (pickle, unsafe YAML loaders) can execute code while loading data.", "ask": ["Where does this data come from? Could someone else have written it?", "Does the loader you are using only build data, or can it build arbitrary objects?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html"}, "csrf": {"title": "Cross-site request forgery (CSRF)", "why": "Without protection, another website can make a logged-in user's browser perform actions on your site.", "ask": ["How does the server know a request came from your own form?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"}, "open-redirect": {"title": "Open redirect", "why": "Redirecting to a user-supplied URL lets attackers use your domain to make phishing links look trustworthy.", "ask": ["Which destinations should this redirect actually allow?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html"}, "vulnerable-dependency": {"title": "Dependencies with known vulnerabilities", "why": "A library with a published vulnerability is a known way in, and attackers scan for them automatically.", "ask": ["Do you actually use the affected part of this package?", "What would upgrading change, and how would you check nothing broke?"], "learn": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/"}, "documentation": {"title": "Documentation", "why": "In industry, code nobody can set up or understand is code nobody can maintain. A README is the first thing a colleague or client reads.", "ask": ["Could someone who has never seen this project run it from your README alone?", "Have you explained the security decisions you made, and the ones you deferred?"], "learn": "https://www.makeareadme.com/"}, "repo-hygiene": {"title": "Repository hygiene", "why": "Committed environment files and dependency folders leak configuration and bloat the repository.", "ask": ["Which files in this repository should only ever exist on your own machine?"], "learn": "https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files"}, "credential-storage": {"title": "Password storage", "why": "If the database is ever copied or leaked, every stored password is exposed as-is. Many people reuse passwords, so the damage spreads beyond your application.", "ask": ["If someone read your users collection, what exactly would they learn?", "What is the difference between encrypting a password and hashing it, and which does login actually need?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"}, "tls-verification": {"title": "TLS certificate verification", "why": "Certificate checks are what prove you are talking to your real database server. Without them, anyone on the network path can impersonate it and read the traffic.", "ask": ["Why was this setting needed in the first place, and is that reason still true?", "Could this setting ever be active when the application is deployed?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"}, "nosql-injection": {"title": "NoSQL injection", "why": "MongoDB operators such as $regex and $where interpret their input. If a user controls that input, they can change what the query matches or make it very slow.", "ask": ["What would this query do if the input were .* or a very long pattern?", "Does this search need to treat the input as a pattern at all?"], "learn": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection"}, "missing-authentication": {"title": "Authentication on routes that change data", "why": "Any route that creates, changes or deletes data without checking who is calling can be used by anyone who finds the URL.", "ask": ["Who should be allowed to call this route, and what currently stops everyone else?", "Where does the user's identity come from here: the token, or the request body?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"}, "input-validation": {"title": "Input validation", "why": "Unchecked input that cannot be converted crashes the request with a 500 error, which tells the client nothing useful and hides the real cause.", "ask": ["What happens if someone sends page=abc?", "Which HTTP status code best describes a request with invalid input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"}, "debug-mode": {"title": "Debug mode", "why": "Flask's debugger shows full stack traces and includes an interactive console. If it is reachable by others, they can run code on your machine.", "ask": ["Where and by whom will this application be run?", "How could the same code run in debug mode locally but not elsewhere?"], "learn": "https://flask.palletsprojects.com/en/latest/debugging/"}, "general": {"title": "Other security findings", "why": "The tool matched a known risky pattern. Read its message and decide whether it applies to your context.", "ask": ["What is the rule concerned about, in your own words?", "Does that concern apply to how this code is actually used?"], "learn": "https://owasp.org/www-project-top-ten/"}};
+const MIN_WORDS = 15;
+const POLL_MS = 5000, GIVE_UP_MS = 8 * 60 * 1000;
+const TEXT_EXT = /\.(py|js|ts|jsx|tsx|mjs|cjs|json|md|txt|yml|yaml|toml|cfg|ini|env|html|htm|css|scss|sql|sh|java|php|rb|go|cs)$/i;
+const SKIP_DIRS = /(^|\/)(node_modules|venv|\.venv|env|\.git|\.idea|\.vscode|dist|build)\//;
+const MAX_FILE = 400000, MAX_TOTAL = 3000000;
+
+let project = "", current = null, store = null, pending = null, chosen = null, pollTimer = null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const words = (s) => (s || "").trim().split(/\s+/).filter(Boolean).length;
+const ls = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const keyFor = (p) => "crc:portal:" + p;
+function saveStore() { ls.set(keyFor(project), store); }
+
+// ---------- preparing files ----------
+const isText = (p) => TEXT_EXT.test(p) || /(^|\/)\.(gitignore|env[\w.-]*)$/.test(p) || /(^|\/)(requirements\.txt|Dockerfile|Procfile)$/.test(p);
+
+function normalise(entries) {
+  let files = entries.filter((f) => !/(^|\/)__MACOSX\//.test(f.path) && !/(^|\/)\._/.test(f.path));
+  const tops = new Set(files.map((f) => f.path.split("/")[0]));
+  if (tops.size === 1 && files.every((f) => f.path.includes("/"))) {
+    const cut = [...tops][0].length + 1;
+    files = files.map((f) => ({ ...f, path: f.path.slice(cut) }));
+  }
+  // keep one marker for skipped folders so "folder included" checks still work
+  const out = [], marked = new Set();
+  for (const f of files) {
+    const m = f.path.match(SKIP_DIRS);
+    if (m) {
+      const dir = f.path.slice(0, f.path.indexOf(m[2] + "/") + m[2].length);
+      if (!marked.has(dir)) { marked.add(dir); out.push({ path: dir + "/.included", size: 0, read: null }); }
+      continue;
+    }
+    out.push(f);
+  }
+  return out;
+}
+
+async function readAll(files) {
+  let total = 0;
+  const out = [];
+  for (const f of files) {
+    if (f.read && isText(f.path) && f.size <= MAX_FILE) {
+      const content = await f.read();
+      total += content.length;
+      if (total > MAX_TOTAL) throw new Error("too-large");
+      out.push({ path: f.path, content });
+    } else out.push({ path: f.path, binary: true });
+  }
+  return out;
+}
+
+async function fromZip(file) {
+  const zip = await JSZip.loadAsync(file);
+  return Object.values(zip.files).filter((e) => !e.dir).map((e) => ({
+    path: e.name, size: (e._data && e._data.uncompressedSize) || 0, read: () => e.async("string") }));
+}
+function fromFolder(list) {
+  return [...list].map((f) => ({ path: f.webkitRelativePath || f.name, size: f.size, read: () => f.text() }));
+}
+
+// ---------- talking to the relay ----------
+async function relay(path, body) {
+  const res = await fetch(RELAY_URL.replace(/\/$/, "") + path, body
+    ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(data.error || "The review service didn't respond. Check your connection and try again.");
+  return data;
+}
+
+function showStep(step) {
+  const order = ["send", "queued", "running", "finishing"];
+  const at = order.indexOf(step);
+  $("steps").querySelectorAll("li").forEach((li, i) => { li.className = i < at ? "done" : i === at ? "now" : ""; });
+}
+
+async function send() {
+  $("error").textContent = "";
+  const id = $("studentId").value.trim(), code = $("accessCode").value.trim();
+  if (!/^[A-Za-z0-9_-]{3,24}$/.test(id)) { $("error").textContent = "Enter your student ID using letters and numbers only."; $("studentId").focus(); return; }
+  if (!code) { $("error").textContent = "Enter the access code your lecturer gave you."; $("accessCode").focus(); return; }
+  if (!chosen) { $("error").textContent = "Choose your project zip or folder first."; return; }
+  ls.set("crc:portal:me", { id, code });
+
+  $("sendBtn").disabled = true;
+  $("results").style.display = "none";
+  $("progress").hidden = false; $("retryBtn").hidden = true;
+  $("progressTitle").textContent = "Reviewing your code";
+  $("progressNote").textContent = "This usually takes one to two minutes. Keep this page open.";
+  showStep("send");
+  try {
+    const files = await readAll(normalise(chosen.entries));
+    if (!files.length) throw new Error("No files were found in your upload.");
+    const res = await relay("/submit", { studentId: id, accessCode: code, files });
+    pending = { id, sha: res.sha, files: res.files, started: Date.now() };
+    ls.set("crc:portal:pending", pending);
+    poll();
+  } catch (e) {
+    $("progress").hidden = true; $("sendBtn").disabled = false;
+    $("error").textContent = e.message === "too-large"
+      ? "This project is too large to review. Leave out data files, images and dependency folders, then try again."
+      : e.message;
+  }
+}
+
+async function poll() {
+  clearTimeout(pollTimer);
+  $("progress").hidden = false; $("retryBtn").hidden = true;
+  try {
+    const s = await relay(`/status?id=${encodeURIComponent(pending.id)}&sha=${pending.sha}`);
+    if (s.state === "done") { finish(s.report); return; }
+    if (s.state === "failed") {
+      $("progressTitle").textContent = "The review couldn't finish";
+      $("progressNote").textContent = "Something went wrong while scanning. Send your code again; if it keeps failing, tell your lecturer.";
+      $("sendBtn").disabled = false; return;
+    }
+    showStep(s.state);
+  } catch (e) { $("progressNote").textContent = e.message; }
+  if (Date.now() - pending.started > GIVE_UP_MS) {
+    $("progressNote").textContent = "This is taking longer than usual. The review will still finish: check again in a few minutes.";
+    $("retryBtn").hidden = false; $("sendBtn").disabled = false; return;
+  }
+  pollTimer = setTimeout(poll, POLL_MS);
+}
+
+function finish(report) {
+  $("progress").hidden = true; $("sendBtn").disabled = false;
+  ls.set("crc:portal:last", { id: pending.id, sha: pending.sha, files: pending.files, report, at: Date.now() });
+  ls.del("crc:portal:pending");
+  showReport(pending.id, report, pending.files, true);
+}
+
+function showReport(id, report, fileCount, isNew) {
+  project = id.toUpperCase();
+  store = ls.get(keyFor(project), { scan: 0, responses: {} });
+  if (isNew) { store.scan += 1; saveStore(); }
+  current = { findings: report.findings || [], stats: { scanned: fileCount }, tools: report.tools || [] };
+  render();
+  $("results").style.display = "block";
+  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ---------- responses ----------
+function stateOf(f) {
+  const r = store.responses[f.id];
+  if (!r || !r.status) return ["open", "Awaiting your response"];
+  if (r.status === "Fixed")
+    return r.scan < store.scan ? ["flag", "Marked fixed, but still detected in your latest review"]
+                               : ["pending", "Marked fixed. Send your updated code to confirm."];
+  const n = words(r.reason);
+  if (n < MIN_WORDS) return ["flag", `${r.status}: reason too brief (${n} of ${MIN_WORDS} words)`];
+  return ["done", r.status + ": response complete"];
+}
+
+function countsText(states) {
+  const n = (k) => states.filter((s) => s[0] === k).length;
+  return current.findings.length
+    ? `${n("done")} of ${current.findings.length} responded${n("flag") ? `, ${n("flag")} need attention` : ""}` : "No findings";
+}
+
+function render() {
+  const fs = current.findings;
+  const states = fs.map(stateOf);
+  const sev = (k) => fs.filter((f) => f.severity === k).length;
+  const ids = new Set(fs.map((f) => f.id));
+  const resolved = Object.entries(store.responses).filter(([id, r]) => r.status === "Fixed" && !ids.has(id));
+
+  $("project").textContent = project;
+  $("counts").textContent = countsText(states);
+  $("meter").innerHTML = states.map((s) => `<span class="tick ${s[0]}"></span>`).join("");
+  const tools = current.tools.length ? ` Checked with ${esc(current.tools.join(", "))}.` : "";
+  $("summary").innerHTML = fs.length
+    ? `<p>${current.stats.scanned} files sent.${tools} <span class="sev high">${sev("high")} high</span>
+       <span class="sev medium">${sev("medium")} medium</span> <span class="sev low">${sev("low")} low</span></p>`
+    : `<div class="clean"><h2>No findings</h2><p>${current.stats.scanned} files sent.${tools} The review found nothing to flag.
+       That isn't proof the code is secure, so explain your own security decisions in your README.</p></div>`;
+
+  const cats = [];
+  fs.forEach((f) => { if (!cats.includes(f.category)) cats.push(f.category); });
+  $("findings").innerHTML = cats.map((c) => {
+    const h = HINTS[c] || HINTS.general;
+    const items = fs.filter((f) => f.category === c);
+    return `<section class="cat ${items[0].severity}" aria-labelledby="h-${esc(c)}">
+      <h2 id="h-${esc(c)}">${esc(h.title)}</h2>
+      <p class="why">${esc(h.why)}</p>
+      <ul class="ask">${h.ask.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
+      <p class="learn"><a href="${esc(h.learn)}" target="_blank" rel="noopener">Read the guidance</a></p>
+      ${items.map(findingHTML).join("")}
+    </section>`;
+  }).join("");
+  $("resolvedBox").innerHTML = resolved.length ? `<div class="resolved"><h3>Resolved since your earlier review</h3>
+    <p>${resolved.map(([id]) => `<span class="fid">${esc(id)}</span>`).join(", ")}</p></div>` : "";
+}
+
+function findingHTML(f) {
+  const r = store.responses[f.id] || {};
+  const [cls, label] = stateOf(f);
+  const loc = f.line ? `${f.path}:${f.line}` : f.path;
+  return `<article class="finding" data-id="${esc(f.id)}">
+    <div class="f-head"><span class="fid">${esc(f.id)}</span><span class="sev ${esc(f.severity)}">${esc(f.severity)}</span><span class="loc">${esc(loc)}</span></div>
+    <p class="msg">${esc(f.message)}</p>
+    <div class="choices" role="group" aria-label="Your response to ${esc(f.id)}">
+      ${["Fixed", "Justified", "Rejected"].map((s) => `<button type="button" data-status="${s}" aria-pressed="${r.status === s}">${s}</button>`).join("")}
+    </div>
+    <textarea aria-label="Reason for ${esc(f.id)}" placeholder="Explain your reasoning (at least 15 words for Justified or Rejected)">${esc(r.reason || "")}</textarea>
+    <div class="state ${cls}">${esc(label)}</div>
+  </article>`;
+}
+
+function refreshCard(card) {
+  const f = current.findings.find((x) => x.id === card.dataset.id);
+  const [cls, label] = stateOf(f);
+  const st = card.querySelector(".state"); st.className = "state " + cls; st.textContent = label;
+  const states = current.findings.map(stateOf);
+  $("counts").textContent = countsText(states);
+  $("meter").innerHTML = states.map((s) => `<span class="tick ${s[0]}"></span>`).join("");
+}
+
+$("findings").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-status]"); if (!b) return;
+  const card = b.closest(".finding"); const id = card.dataset.id;
+  const r = store.responses[id] || { reason: "" };
+  r.status = r.status === b.dataset.status ? "" : b.dataset.status; r.scan = store.scan;
+  store.responses[id] = r; saveStore();
+  card.querySelectorAll("button[data-status]").forEach((x) => x.setAttribute("aria-pressed", x.dataset.status === r.status));
+  refreshCard(card);
+});
+$("findings").addEventListener("input", (e) => {
+  if (e.target.tagName !== "TEXTAREA") return;
+  const card = e.target.closest(".finding"); const id = card.dataset.id;
+  const r = store.responses[id] || { status: "" };
+  r.reason = e.target.value; if (r.status === "Fixed") r.scan = store.scan;
+  store.responses[id] = r; saveStore(); refreshCard(card);
+});
+
+// ---------- export ----------
+function responsesMarkdown() {
+  const fs = current.findings, states = fs.map(stateOf);
+  const n = (k) => states.filter((s) => s[0] === k).length;
+  const ids = new Set(fs.map((f) => f.id));
+  const resolved = Object.entries(store.responses).filter(([id, r]) => r.status === "Fixed" && !ids.has(id)).map(([id]) => id);
+  const last = ls.get("crc:portal:last", {});
+  const lines = [`# Review Responses: ${project}`, "",
+    `Review commit: ${(last.sha || "").slice(0, 7)}. Downloaded ${new Date().toLocaleString("en-GB")}. Review number ${store.scan}.`, "",
+    `Findings: ${fs.length}. Complete: ${n("done")}. Need attention: ${n("flag")}. Awaiting: ${n("open")}. Fixed awaiting confirmation: ${n("pending")}.`,
+    `Resolved since earlier reviews: ${resolved.length ? resolved.join(", ") : "none"}.`, ""];
+  fs.forEach((f, i) => {
+    const r = store.responses[f.id] || {};
+    lines.push(`## ${f.id}`, `Location: ${f.line ? f.path + ":" + f.line : f.path}`,
+      `Category: ${(HINTS[f.category] || HINTS.general).title} (${f.severity})`, `Detected: ${f.message}`,
+      `Status: ${r.status || "No response"}`, `Reason: ${(r.reason || "").trim() || "None given"}`, `Check result: ${states[i][1]}`, "");
+  });
+  return lines.join("\n");
+}
+
+$("saveBtn").addEventListener("click", async () => {
+  const text = responsesMarkdown(), filename = `review-responses-${project}.md`, msg = $("saveMsg");
+  try {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+    a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    msg.textContent = `Downloaded ${filename}. Submit it with your code.`;
+  } catch (e) {
+    try { await navigator.clipboard.writeText(text); msg.textContent = "Your responses were copied. Paste them into a file called REVIEW_RESPONSES.md."; }
+    catch (_) { msg.textContent = "Couldn't save your responses in this browser. Try another browser."; }
+  }
+});
+
+// ---------- wiring ----------
+function choose(entries, label) {
+  chosen = { entries, label };
+  $("chosen").textContent = `${label}: ${normalise(entries).length} files ready to send`;
+  $("sendBtn").disabled = !RELAY_URL;
+  $("error").textContent = "";
+}
+async function takeZip(file) {
+  if (!file) return;
+  if (!/\.zip$/i.test(file.name)) { $("error").textContent = "That file isn't a zip. Choose a .zip file, or use Choose project folder."; return; }
+  try { choose(await fromZip(file), file.name); }
+  catch (e) { $("error").textContent = "This zip couldn't be opened. Re-create it and try again."; }
+}
+$("zipInput").addEventListener("change", (e) => { takeZip(e.target.files[0]); e.target.value = ""; });
+$("dirInput").addEventListener("change", (e) => {
+  const files = [...e.target.files]; e.target.value = "";
+  if (files.length) choose(fromFolder(files), (files[0].webkitRelativePath || "project").split("/")[0] + " folder");
+});
+const drop = $("drop");
+["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => takeZip(e.dataTransfer.files[0]));
+$("sendBtn").addEventListener("click", send);
+$("retryBtn").addEventListener("click", () => { pending.started = Date.now(); poll(); });
+$("againBtn").addEventListener("click", () => { window.scrollTo({ top: 0, behavior: "smooth" }); chosen = null; $("chosen").textContent = ""; $("sendBtn").disabled = true; });
+$("lastBtn").addEventListener("click", () => { const l = ls.get("crc:portal:last", null); if (l) showReport(l.id, l.report, l.files, false); });
+$("forgetBtn").addEventListener("click", () => {
+  if (!confirm("Forget your saved responses on this device? This can't be undone.")) return;
+  ls.del(keyFor(project)); store = { scan: 1, responses: {} }; saveStore(); render();
+});
+
+(function init() {
+  if (!RELAY_URL) { $("notReady").hidden = false; }
+  const me = ls.get("crc:portal:me", null);
+  if (me) { $("studentId").value = me.id || ""; $("accessCode").value = me.code || ""; }
+  if (ls.get("crc:portal:last", null)) $("lastBtn").hidden = false;
+  const p = ls.get("crc:portal:pending", null);
+  if (p && RELAY_URL) { pending = p; pending.started = Date.now(); poll(); }
+})();
+</script>
+</body>
+</html>
