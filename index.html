@@ -99,6 +99,13 @@ textarea{width:100%;min-height:74px;margin-top:10px;font:15px/1.5 var(--sans);pa
 @media (max-width:560px){.fields{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:no-preference){.steps li.now::before{animation:pulse 1.4s ease-in-out infinite}}
 @keyframes pulse{50%{opacity:.35}}
+.dbbox{margin:14px 0 0;padding:18px 20px;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+.dbbox p{margin:6px 0 12px}
+.tablewrap{overflow-x:auto;margin:8px 0 6px}
+table.profile{border-collapse:collapse;width:100%;font-size:15px}
+table.profile th,table.profile td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.profile th{font-weight:700}
+table.profile td.num{font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -124,6 +131,13 @@ textarea{width:100%;min-height:74px;margin-top:10px;font:15px/1.5 var(--sans);pa
       </div>
       <div class="chosen" id="chosen"></div>
       <div id="error" class="error" role="alert"></div>
+    </div>
+    <div class="dbbox">
+      <strong>Database export</strong> <span class="counts">(optional)</span>
+      <p class="counts">Add the JSON files you exported with mongoexport, or a zip of them, to have your data reviewed as well.</p>
+      <label class="pick">Choose database files<input type="file" id="dbInput" accept=".zip,.json,application/json,application/zip" multiple></label>
+      <button type="button" class="link" id="dbClear" hidden>Remove database files</button>
+      <div class="chosen" id="dbChosen"></div>
     </div>
     <div class="send"><button class="primary" id="sendBtn" disabled>Send for review</button></div>
     <p class="consent">Your code is sent to the module's private review repository, where only module staff can see it.
@@ -170,14 +184,14 @@ const RELAY_URL = "https://code-review-relay.sihanharoon.workers.dev";
 // ==============================================================================================================
 const RELAY_OK = /^https:\/\/[^<>\s]+$/.test(RELAY_URL);
 
-const HINTS = {"sql-injection": {"title": "SQL injection", "why": "If user input is joined into a query string, a user can change what the query does, including reading or deleting data they should never see.", "ask": ["Trace where each value in this query comes from. Could a user control any part of it?", "What would happen if that value contained a single quote?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"}, "xss": {"title": "Cross-site scripting (XSS)", "why": "If user-supplied text is written into a page as HTML, a user can inject script that runs in other people's browsers.", "ask": ["Where does this text originate, and does any step treat it as markup rather than text?", "What would render if someone submitted <script> as their input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"}, "secrets": {"title": "Hardcoded secrets and credentials", "why": "Anyone with access to the repository, now or in future, can use a committed key or password. Deleting it later does not remove it from Git history.", "ask": ["Who can see this repository, and who might in future?", "If this credential were leaked, what would you need to do beyond editing the file?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"}, "command-injection": {"title": "Command injection", "why": "Passing input to a shell lets a user run arbitrary commands on the server.", "ask": ["Does any part of this command come from outside your code?", "Does this task need a shell at all?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"}, "code-injection": {"title": "Dynamic code execution", "why": "Evaluating strings as code means anyone who controls the string controls your program.", "ask": ["Why is code being built from a string here?", "Could a user influence that string, directly or indirectly?"], "learn": "https://owasp.org/www-community/attacks/Code_Injection"}, "path-traversal": {"title": "Path traversal", "why": "Building file paths from input can let a user read or overwrite files outside the intended folder.", "ask": ["What happens if the input contains ../ ?", "Which folder should this code be allowed to reach, and what enforces that?"], "learn": "https://owasp.org/www-community/attacks/Path_Traversal"}, "weak-crypto": {"title": "Weak or misused cryptography", "why": "Outdated algorithms (MD5, SHA-1, DES) or fast hashes for passwords can be broken with ordinary hardware.", "ask": ["What is this hash or cipher protecting, and for how long must it stay protected?", "Is this algorithm designed for that purpose?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"}, "deserialisation": {"title": "Unsafe deserialisation", "why": "Some formats (pickle, unsafe YAML loaders) can execute code while loading data.", "ask": ["Where does this data come from? Could someone else have written it?", "Does the loader you are using only build data, or can it build arbitrary objects?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html"}, "csrf": {"title": "Cross-site request forgery (CSRF)", "why": "Without protection, another website can make a logged-in user's browser perform actions on your site.", "ask": ["How does the server know a request came from your own form?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"}, "open-redirect": {"title": "Open redirect", "why": "Redirecting to a user-supplied URL lets attackers use your domain to make phishing links look trustworthy.", "ask": ["Which destinations should this redirect actually allow?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html"}, "vulnerable-dependency": {"title": "Dependencies with known vulnerabilities", "why": "A library with a published vulnerability is a known way in, and attackers scan for them automatically.", "ask": ["Do you actually use the affected part of this package?", "What would upgrading change, and how would you check nothing broke?"], "learn": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/"}, "documentation": {"title": "Documentation", "why": "In industry, code nobody can set up or understand is code nobody can maintain. A README is the first thing a colleague or client reads.", "ask": ["Could someone who has never seen this project run it from your README alone?", "Have you explained the security decisions you made, and the ones you deferred?"], "learn": "https://www.makeareadme.com/"}, "repo-hygiene": {"title": "Repository hygiene", "why": "Committed environment files and dependency folders leak configuration and bloat the repository.", "ask": ["Which files in this repository should only ever exist on your own machine?"], "learn": "https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files"}, "credential-storage": {"title": "Password storage", "why": "If the database is ever copied or leaked, every stored password is exposed as-is. Many people reuse passwords, so the damage spreads beyond your application.", "ask": ["If someone read your users collection, what exactly would they learn?", "What is the difference between encrypting a password and hashing it, and which does login actually need?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"}, "tls-verification": {"title": "TLS certificate verification", "why": "Certificate checks are what prove you are talking to your real database server. Without them, anyone on the network path can impersonate it and read the traffic.", "ask": ["Why was this setting needed in the first place, and is that reason still true?", "Could this setting ever be active when the application is deployed?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"}, "nosql-injection": {"title": "NoSQL injection", "why": "MongoDB operators such as $regex and $where interpret their input. If a user controls that input, they can change what the query matches or make it very slow.", "ask": ["What would this query do if the input were .* or a very long pattern?", "Does this search need to treat the input as a pattern at all?"], "learn": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection"}, "missing-authentication": {"title": "Authentication on routes that change data", "why": "Any route that creates, changes or deletes data without checking who is calling can be used by anyone who finds the URL.", "ask": ["Who should be allowed to call this route, and what currently stops everyone else?", "Where does the user's identity come from here: the token, or the request body?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"}, "input-validation": {"title": "Input validation", "why": "Unchecked input that cannot be converted crashes the request with a 500 error, which tells the client nothing useful and hides the real cause.", "ask": ["What happens if someone sends page=abc?", "Which HTTP status code best describes a request with invalid input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"}, "debug-mode": {"title": "Debug mode", "why": "Flask's debugger shows full stack traces and includes an interactive console. If it is reachable by others, they can run code on your machine.", "ask": ["Where and by whom will this application be run?", "How could the same code run in debug mode locally but not elsewhere?"], "learn": "https://flask.palletsprojects.com/en/latest/debugging/"}, "general": {"title": "Other security findings", "why": "The tool matched a known risky pattern. Read its message and decide whether it applies to your context.", "ask": ["What is the rule concerned about, in your own words?", "Does that concern apply to how this code is actually used?"], "learn": "https://owasp.org/www-project-top-ten/"}};
+const HINTS = {"sql-injection": {"title": "SQL injection", "why": "If user input is joined into a query string, a user can change what the query does, including reading or deleting data they should never see.", "ask": ["Trace where each value in this query comes from. Could a user control any part of it?", "What would happen if that value contained a single quote?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"}, "xss": {"title": "Cross-site scripting (XSS)", "why": "If user-supplied text is written into a page as HTML, a user can inject script that runs in other people's browsers.", "ask": ["Where does this text originate, and does any step treat it as markup rather than text?", "What would render if someone submitted <script> as their input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"}, "secrets": {"title": "Hardcoded secrets and credentials", "why": "Anyone with access to the repository, now or in future, can use a committed key or password. Deleting it later does not remove it from Git history.", "ask": ["Who can see this repository, and who might in future?", "If this credential were leaked, what would you need to do beyond editing the file?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"}, "command-injection": {"title": "Command injection", "why": "Passing input to a shell lets a user run arbitrary commands on the server.", "ask": ["Does any part of this command come from outside your code?", "Does this task need a shell at all?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"}, "code-injection": {"title": "Dynamic code execution", "why": "Evaluating strings as code means anyone who controls the string controls your program.", "ask": ["Why is code being built from a string here?", "Could a user influence that string, directly or indirectly?"], "learn": "https://owasp.org/www-community/attacks/Code_Injection"}, "path-traversal": {"title": "Path traversal", "why": "Building file paths from input can let a user read or overwrite files outside the intended folder.", "ask": ["What happens if the input contains ../ ?", "Which folder should this code be allowed to reach, and what enforces that?"], "learn": "https://owasp.org/www-community/attacks/Path_Traversal"}, "weak-crypto": {"title": "Weak or misused cryptography", "why": "Outdated algorithms (MD5, SHA-1, DES) or fast hashes for passwords can be broken with ordinary hardware.", "ask": ["What is this hash or cipher protecting, and for how long must it stay protected?", "Is this algorithm designed for that purpose?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"}, "deserialisation": {"title": "Unsafe deserialisation", "why": "Some formats (pickle, unsafe YAML loaders) can execute code while loading data.", "ask": ["Where does this data come from? Could someone else have written it?", "Does the loader you are using only build data, or can it build arbitrary objects?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html"}, "csrf": {"title": "Cross-site request forgery (CSRF)", "why": "Without protection, another website can make a logged-in user's browser perform actions on your site.", "ask": ["How does the server know a request came from your own form?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"}, "open-redirect": {"title": "Open redirect", "why": "Redirecting to a user-supplied URL lets attackers use your domain to make phishing links look trustworthy.", "ask": ["Which destinations should this redirect actually allow?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html"}, "vulnerable-dependency": {"title": "Dependencies with known vulnerabilities", "why": "A library with a published vulnerability is a known way in, and attackers scan for them automatically.", "ask": ["Do you actually use the affected part of this package?", "What would upgrading change, and how would you check nothing broke?"], "learn": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/"}, "documentation": {"title": "Documentation", "why": "In industry, code nobody can set up or understand is code nobody can maintain. A README is the first thing a colleague or client reads.", "ask": ["Could someone who has never seen this project run it from your README alone?", "Have you explained the security decisions you made, and the ones you deferred?"], "learn": "https://www.makeareadme.com/"}, "repo-hygiene": {"title": "Repository hygiene", "why": "Committed environment files and dependency folders leak configuration and bloat the repository.", "ask": ["Which files in this repository should only ever exist on your own machine?"], "learn": "https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files"}, "credential-storage": {"title": "Password storage", "why": "If the database is ever copied or leaked, every stored password is exposed as-is. Many people reuse passwords, so the damage spreads beyond your application.", "ask": ["If someone read your users collection, what exactly would they learn?", "What is the difference between encrypting a password and hashing it, and which does login actually need?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"}, "tls-verification": {"title": "TLS certificate verification", "why": "Certificate checks are what prove you are talking to your real database server. Without them, anyone on the network path can impersonate it and read the traffic.", "ask": ["Why was this setting needed in the first place, and is that reason still true?", "Could this setting ever be active when the application is deployed?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"}, "nosql-injection": {"title": "NoSQL injection", "why": "MongoDB operators such as $regex and $where interpret their input. If a user controls that input, they can change what the query matches or make it very slow.", "ask": ["What would this query do if the input were .* or a very long pattern?", "Does this search need to treat the input as a pattern at all?"], "learn": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection"}, "missing-authentication": {"title": "Authentication on routes that change data", "why": "Any route that creates, changes or deletes data without checking who is calling can be used by anyone who finds the URL.", "ask": ["Who should be allowed to call this route, and what currently stops everyone else?", "Where does the user's identity come from here: the token, or the request body?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"}, "input-validation": {"title": "Input validation", "why": "Unchecked input that cannot be converted crashes the request with a 500 error, which tells the client nothing useful and hides the real cause.", "ask": ["What happens if someone sends page=abc?", "Which HTTP status code best describes a request with invalid input?"], "learn": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"}, "debug-mode": {"title": "Debug mode", "why": "Flask's debugger shows full stack traces and includes an interactive console. If it is reachable by others, they can run code on your machine.", "ask": ["Where and by whom will this application be run?", "How could the same code run in debug mode locally but not elsewhere?"], "learn": "https://flask.palletsprojects.com/en/latest/debugging/"}, "personal-data": {"title": "Personal data in your dataset", "why": "Real people's details in coursework data can breach data protection law, and anyone who sees your database or submission can read them.", "ask": ["Where did these records come from, and did the people involved agree to this use?", "Would invented values work just as well for what your application demonstrates?"], "learn": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/"}, "data-design": {"title": "Database design", "why": "How documents are shaped decides which queries are possible. Embedded sub-documents, a range of value types and enough data are what let an API show more than basic lookups.", "ask": ["Which of your endpoints depend on this part of the data, and do they have enough to work with?", "What would a user of your API expect to find here that isn't there yet?"], "learn": "https://www.mongodb.com/docs/manual/data-modeling/"}, "data-quality": {"title": "Data consistency", "why": "When the same field holds different types or formats across documents, queries, sorting and validation quietly return wrong or incomplete results.", "ask": ["What would a range query or a sort on this field return right now?", "Where does this data enter the database, and what checks happen at that point?"], "learn": "https://www.mongodb.com/docs/manual/core/schema-validation/"}, "data-references": {"title": "Links between collections", "why": "If a field meant to point at another collection holds values that don't match anything there, every lookup or join that relies on it comes back empty.", "ask": ["Which values identify a document in the other collection, and which values does this field actually hold?", "How would your API find the linked document for one of these records today?"], "learn": "https://www.mongodb.com/docs/manual/reference/database-references/"}, "general": {"title": "Other security findings", "why": "The tool matched a known risky pattern. Read its message and decide whether it applies to your context.", "ask": ["What is the rule concerned about, in your own words?", "Does that concern apply to how this code is actually used?"], "learn": "https://owasp.org/www-project-top-ten/"}};
 const MIN_WORDS = 15;
 const POLL_MS = 5000, GIVE_UP_MS = 8 * 60 * 1000, FINISH_GIVE_UP_MS = 2 * 60 * 1000, RESUME_MAX_MS = 20 * 60 * 1000;
 const TEXT_EXT = /\.(py|js|ts|jsx|tsx|mjs|cjs|json|md|txt|yml|yaml|toml|cfg|ini|env|html|htm|css|scss|sql|sh|java|php|rb|go|cs)$/i;
 const SKIP_DIRS = /(^|\/)(node_modules|venv|\.venv|env|\.git|\.idea|\.vscode|dist|build)\//;
 const MAX_FILE = 400000, MAX_TOTAL = 3000000;
 
-let project = "", current = null, store = null, pending = null, chosen = null, pollTimer = null;
+let project = "", current = null, store = null, pending = null, chosen = null, pollTimer = null, dbChosen = null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const words = (s) => (s || "").trim().split(/\s+/).filter(Boolean).length;
@@ -236,6 +250,80 @@ function fromFolder(list) {
   return [...list].map((f) => ({ path: f.webkitRelativePath || f.name, size: f.size, read: () => f.text() }));
 }
 
+// ---------- database exports ----------
+const DB_SAMPLE_DOCS = 300, DB_SAMPLE_CHARS = 350000, DB_ID_CAP = 20000;
+const ID_FIELD = /(^_id$|(^|_)id$|[a-z]Id$)/;
+
+function collectionName(path) {
+  const base = path.replace(/^.*\//, "").replace(/\.json$/i, "");
+  const parts = base.split(".");
+  return ((parts.length > 1 ? parts.slice(1).join(".") : base).replace(/[^\w.-]/g, "_")) || "collection";
+}
+function parseExport(text) {
+  const t = text.replace(/^\uFEFF/, "").trim();
+  if (!t) return [];
+  if (t[0] === "[") { const a = JSON.parse(t); return Array.isArray(a) ? a.filter((d) => d && typeof d === "object") : []; }
+  const docs = [];
+  for (const line of t.split(/\r?\n/)) {
+    const l = line.trim(); if (!l) continue;
+    try { const d = JSON.parse(l); if (d && typeof d === "object" && !Array.isArray(d)) docs.push(d); } catch (e) {}
+  }
+  return docs;
+}
+function idValue(v) {
+  if (v && typeof v === "object") {
+    for (const k of ["$oid", "$numberInt", "$numberLong", "$numberDouble", "$numberDecimal"]) if (k in v) return String(v[k]);
+    return JSON.stringify(v);
+  }
+  return String(v);
+}
+function prepareCollection(name, docs) {
+  const lines = []; let chars = 0;
+  for (const d of docs) {
+    if (lines.length >= DB_SAMPLE_DOCS) break;
+    const l = JSON.stringify(d);
+    if (chars + l.length > DB_SAMPLE_CHARS && lines.length) break;
+    lines.push(l); chars += l.length;
+  }
+  const ids = {};
+  for (const d of docs) for (const [k, v] of Object.entries(d)) {
+    if (!ID_FIELD.test(k) || v === null || v === undefined) continue;
+    (ids[k] = ids[k] || []);
+    if (ids[k].length < DB_ID_CAP) ids[k].push(idValue(v));
+  }
+  return { name, total: docs.length, sampled: lines.length, jsonl: lines.join("\n") + "\n", ids };
+}
+async function readDbFiles(fileList) {
+  const texts = [];
+  for (const f of fileList) {
+    if (/\.zip$/i.test(f.name)) {
+      const zip = await JSZip.loadAsync(f);
+      for (const e of Object.values(zip.files)) {
+        if (e.dir || /(^|\/)__MACOSX\//.test(e.name) || /(^|\/)\._/.test(e.name) || !/\.json$/i.test(e.name)) continue;
+        texts.push({ path: e.name, text: await e.async("string") });
+      }
+    } else if (/\.json$/i.test(f.name)) texts.push({ path: f.name, text: await f.text() });
+  }
+  if (!texts.length) throw new Error("No .json files were found. Choose the files you exported with mongoexport.");
+  const cols = [], used = new Set();
+  for (const t of texts) {
+    let docs;
+    try { docs = parseExport(t.text); } catch (e) { throw new Error(`${t.path.replace(/^.*\//, "")} couldn't be read as a mongoexport file.`); }
+    if (!docs.length) throw new Error(`${t.path.replace(/^.*\//, "")} has no documents in it.`);
+    let name = collectionName(t.path);
+    while (used.has(name)) name += "_2";
+    used.add(name);
+    cols.push(prepareCollection(name, docs));
+  }
+  const files = [{ path: "_database/manifest.json", content: JSON.stringify({ collections: cols.map((c) => ({
+    name: c.name, file: c.name + ".jsonl", ids: c.name + ".ids.json", total: c.total, sampled: c.sampled })) }) }];
+  for (const c of cols) {
+    files.push({ path: `_database/${c.name}.jsonl`, content: c.jsonl });
+    files.push({ path: `_database/${c.name}.ids.json`, content: JSON.stringify(c.ids) });
+  }
+  return { files, summary: cols.map((c) => `${c.name} (${c.total.toLocaleString("en-GB")})`) };
+}
+
 // ---------- talking to the relay ----------
 async function relay(path, body) {
   const res = await fetch(RELAY_URL.replace(/\/$/, "") + path, body
@@ -269,6 +357,12 @@ async function send() {
   try {
     const files = await readAll(normalise(chosen.entries));
     if (!files.length) throw new Error("No files were found in your upload.");
+    if (dbChosen) {
+      const codeChars = files.reduce((n, f) => n + (f.content ? f.content.length : 0), 0);
+      const dbChars = dbChosen.files.reduce((n, f) => n + f.content.length, 0);
+      if (codeChars + dbChars > MAX_TOTAL) throw new Error("too-large");
+      files.push(...dbChosen.files);
+    }
     const res = await relay("/submit", { studentId: id, accessCode: code, files });
     pending = { id, sha: res.sha, files: res.files, started: Date.now(), submitted: Date.now() };
     ls.set("crc:portal:pending", pending);
@@ -330,7 +424,7 @@ function showReport(id, report, fileCount, isNew) {
   project = id.toUpperCase();
   store = ls.get(keyFor(project), { scan: 0, responses: {} });
   if (isNew) { store.scan += 1; saveStore(); }
-  current = { findings: report.findings || [], stats: { scanned: fileCount }, tools: report.tools || [] };
+  current = { findings: report.findings || [], stats: { scanned: fileCount }, tools: report.tools || [], profile: report.profile || [] };
   render();
   $("results").style.display = "block";
   $("results").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -371,9 +465,15 @@ function render() {
     : `<div class="clean"><h2>No findings</h2><p>${current.stats.scanned} files sent.${tools} The review found nothing to flag.
        That isn't proof the code is secure, so explain your own security decisions in your README.</p></div>`;
 
+  const prof = current.profile || [];
+  const profileHTML = prof.length ? `<section class="cat" aria-labelledby="h-db"><h2 id="h-db">Your database</h2>
+    <div class="tablewrap"><table class="profile"><thead><tr><th>Collection</th><th>Documents</th><th>Fields</th><th>Value types</th><th>Sub-documents</th><th>Links to other collections</th></tr></thead><tbody>
+    ${prof.map((p) => `<tr><td class="mono">${esc(p.name)}</td><td class="num">${Number(p.documents).toLocaleString("en-GB")}</td><td class="num">${esc(p.fields)}</td>
+      <td>${esc((p.types || []).join(", "))}</td><td>${p.subdocuments ? "yes" : "no"}</td><td>${esc((p.references || []).join("; ") || "none found")}</td></tr>`).join("")}
+    </tbody></table></div></section>` : "";
   const cats = [];
   fs.forEach((f) => { if (!cats.includes(f.category)) cats.push(f.category); });
-  $("findings").innerHTML = cats.map((c) => {
+  $("findings").innerHTML = profileHTML + cats.map((c) => {
     const h = HINTS[c] || HINTS.general;
     const items = fs.filter((f) => f.category === c);
     return `<section class="cat ${items[0].severity}" aria-labelledby="h-${esc(c)}">
@@ -480,6 +580,20 @@ $("dirInput").addEventListener("change", (e) => {
   const files = [...e.target.files]; e.target.value = "";
   if (files.length) choose(fromFolder(files), (files[0].webkitRelativePath || "project").split("/")[0] + " folder");
 });
+$("dbInput").addEventListener("change", async (e) => {
+  const list = [...e.target.files]; e.target.value = "";
+  if (!list.length) return;
+  $("error").textContent = ""; $("dbChosen").textContent = "Reading your database files…";
+  try {
+    dbChosen = await readDbFiles(list);
+    $("dbChosen").textContent = `Collections: ${dbChosen.summary.join(", ")}`;
+    $("dbClear").hidden = false;
+  } catch (err) {
+    dbChosen = null; $("dbChosen").textContent = ""; $("dbClear").hidden = true;
+    $("error").textContent = err.message;
+  }
+});
+$("dbClear").addEventListener("click", () => { dbChosen = null; $("dbChosen").textContent = ""; $("dbClear").hidden = true; });
 const drop = $("drop");
 ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
